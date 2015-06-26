@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks.Dataflow;
 
@@ -9,17 +10,18 @@ namespace ImageHunter
 {
     public class Hunter : IDisposable
     {
-        private const string LOG_FILE_NAME = "output.log";
+        private const string LOG_FILE_NAME = "output.csv";
 
         private readonly TransformManyBlock<string, string> _findFilesBlock;
-        private readonly TransformManyBlock<string, string> _findImagesBlock;
-        private readonly ActionBlock<string> _outputImagesBlock;
+        private readonly TransformManyBlock<string, FoundImage> _findImagesBlock;
+        private readonly ActionBlock<FoundImage> _outputImagesBlock;
         private readonly ActionBlock<string> _outputProgressBlock;
         private readonly BroadcastBlock<string> _broadcastFileBlock; 
 
         private StreamWriter _logWriter;
         private bool _logIsOpen;
         private int _filesProcessed;
+        private readonly Regex _findImageRegex = new Regex("<img.*?src=[\"'](?<src>[^\"']+)[\"']", RegexOptions.Compiled);
 
         public string SearchFileExtensions { get; set; }
         public string SearchPath { get; set; }
@@ -37,8 +39,8 @@ namespace ImageHunter
             _logIsOpen = false;
             _broadcastFileBlock = new BroadcastBlock<string>(null);
             _findFilesBlock = new TransformManyBlock<string, string>((Func<string, IEnumerable<string>>)FindFiles);
-            _findImagesBlock = new TransformManyBlock<string, string>((Func<string, IEnumerable<string>>)FindImagesInFile, new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = maxDegreeOfParallelism });
-            _outputImagesBlock = new ActionBlock<string>((Action<string>) OutputImages);
+            _findImagesBlock = new TransformManyBlock<string, FoundImage>((Func<string, IEnumerable<FoundImage>>)FindImagesInFile, new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = maxDegreeOfParallelism });
+            _outputImagesBlock = new ActionBlock<FoundImage>((Action<FoundImage>)OutputImages);
             _outputProgressBlock = new ActionBlock<string>((Action<string>) OutputProgress);
             BuildTplNetwork();
         }
@@ -66,16 +68,19 @@ namespace ImageHunter
             }
         }
 
-        private IEnumerable<string> FindImagesInFile(string filePath)
+        private IEnumerable<FoundImage> FindImagesInFile(string filePath)
         {
-            Thread.Sleep(1000);
-            return filePath.Split('\\');
+            var fileText = File.ReadAllText(filePath);
+            var matches = _findImageRegex.Matches(fileText);
+            foreach (Match match in matches)
+            {
+                yield return new FoundImage() {FileName = filePath, ImageName = match.Groups["src"].Value};
+            }
         }
 
-        private void OutputImages(string imagePath)
+        private void OutputImages(FoundImage image)
         {
-            if(imagePath.EndsWith(".aspx"))
-                _logWriter.WriteLine(imagePath);
+            _logWriter.WriteLine("{0},{1}",image.FileName, image.ImageName);
         }
 
         public void Run()
@@ -122,6 +127,7 @@ namespace ImageHunter
                 File.Delete(LOG_FILE_NAME);
 
             _logWriter = File.CreateText(LOG_FILE_NAME);
+            _logWriter.WriteLine("File,Image");
 
             _logIsOpen = true;
         }

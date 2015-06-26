@@ -13,4 +13,3 @@ C:\Projects\TestApps\ImageHunter\ImageHunter\bin\Debug\ImageHunter.exe
 C:\Projects\TestApps\ImageHunter\ImageHunter\bin\Debug\ImageHunter.pdb
 C:\Projects\TestApps\ImageHunter\ImageHunter\bin\Debug\System.Threading.Tasks.Dataflow.dll
 C:\Projects\TestApps\ImageHunter\ImageHunter\bin\Debug\System.Threading.Tasks.Dataflow.xml
-C:\Projects\TestApps\ImageHunter\ImageHunter\obj\Debug\ImageHunter.csprojResolveAssemblyReference.cache
