@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Configuration;
 using System.Diagnostics;
 using ImageHunter.FileProvider;
@@ -22,19 +23,23 @@ namespace ImageHunter
 
             var stopwatch = new Stopwatch();
 
+            IFileProvider fileProvider;
+
+            //fileProvider = GetLocalFileProvider();
+            fileProvider = GetHttpFileProvider();
+
             using (var logger = new CsvResultLogger())
             {
 
-                var hunter = new Hunter(maxDegreeOfParallelism, logger, GetFileProvider())
+                var hunter = new Hunter(maxDegreeOfParallelism, logger, fileProvider)
                 {
                     SearchFileExtensions = ConfigurationManager.AppSettings["SearchFileExtensions"],
                     UpdateProgressAfterNumberOfImages =
                         GetConfigInt("ProgressUpdateEveryNImages", DEFAULT_PROGRESS_UPDATE_EVERY_N_IMAGES)
                 };
+
                 stopwatch.Start();
-
                 hunter.Run(ConfigurationManager.AppSettings["SearchPath"]);
-
                 stopwatch.Stop();
             }
 
@@ -44,6 +49,7 @@ namespace ImageHunter
             Console.ReadKey();
         }
 
+        
         private static int GetConfigInt(string key,int defaultValue)
         {
             int configValue;
@@ -53,11 +59,22 @@ namespace ImageHunter
                 return defaultValue;
         }
 
-        private static IFileProvider GetFileProvider()
+        private static IFileProvider GetLocalFileProvider()
         {
             return new LocalFileProvider(ConfigurationManager.AppSettings["SearchPath"], ConfigurationManager.AppSettings["SearchFileExtensions"]);
         }
 
+        private static IFileProvider GetHttpFileProvider()
+        {
+            return new HttpFileProvider(new List<string>
+            {
+                "http://yaracom-dev/",
+                "http://yaracom-dev/about/at_a_glance/",
+                "http://yaracom-dev/media/news_archive/",
+                "http://yaracom-dev/media/news_archive/yara_examining_agricultural_futures.aspx",
+                "http://yarauk-dev/crop-nutrition/products/yaravita/0111-yaravita-fersoil/default.aspx"
+            });
+        }
     }
 }
     

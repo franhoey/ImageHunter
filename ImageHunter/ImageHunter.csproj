@@ -48,6 +48,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="FileProvider\HttpFileProvider.cs" />
     <Compile Include="FileProvider\IFileProvider.cs" />
     <Compile Include="FileProvider\LocalFileProvider.cs" />
     <Compile Include="FoundImage.cs" />
