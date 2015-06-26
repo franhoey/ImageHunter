@@ -1,5 +1,5 @@
 # ImageHunter
-Give it a directory and it will list out all the img src values tags in the files including sub directories
+This could be used to search anything in a local or http file, but is currently configured to search for <img tags.
 
 ## Technology
 Uses TPL Dataflow to enable files to be searched in parallel
