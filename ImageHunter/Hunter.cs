@@ -14,13 +14,17 @@ namespace ImageHunter
         private readonly TransformManyBlock<string, string> _findFilesBlock;
         private readonly TransformManyBlock<string, string> _findImagesBlock;
         private readonly ActionBlock<string> _outputImagesBlock;
+        private readonly ActionBlock<string> _outputProgressBlock;
+        private readonly BroadcastBlock<string> _broadcastFileBlock; 
 
         private StreamWriter _logWriter;
         private bool _logIsOpen;
+        private int _filesProcessed;
 
         public string SearchFileExtensions { get; set; }
         public string SearchPath { get; set; }
         public int MaxDegreeOfParallelism { get; private set; }
+        public int UpdateProgressAfterNumberOfFiles { get; set; }
        
         public Hunter() : this(1)
         {
@@ -28,12 +32,22 @@ namespace ImageHunter
 
         public Hunter(int maxDegreeOfParallelism)
         {
+            UpdateProgressAfterNumberOfFiles = 10;
             MaxDegreeOfParallelism = maxDegreeOfParallelism;
             _logIsOpen = false;
+            _broadcastFileBlock = new BroadcastBlock<string>(null);
             _findFilesBlock = new TransformManyBlock<string, string>((Func<string, IEnumerable<string>>)FindFiles);
             _findImagesBlock = new TransformManyBlock<string, string>((Func<string, IEnumerable<string>>)FindImagesInFile, new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = maxDegreeOfParallelism });
             _outputImagesBlock = new ActionBlock<string>((Action<string>) OutputImages);
+            _outputProgressBlock = new ActionBlock<string>((Action<string>) OutputProgress);
             BuildTplNetwork();
+        }
+
+        private void OutputProgress(string s)
+        {
+            _filesProcessed ++;
+            if (_filesProcessed % UpdateProgressAfterNumberOfFiles == 0)
+                Console.WriteLine("Processed {0} Files", _filesProcessed);
         }
 
         private IEnumerable<string> FindFiles(string folderPath)
@@ -77,10 +91,17 @@ namespace ImageHunter
 
         private void BuildTplNetwork()
         {
-            _findFilesBlock.LinkTo(_findImagesBlock);
+            _findFilesBlock.LinkTo(_broadcastFileBlock);
+            _broadcastFileBlock.LinkTo(_findImagesBlock);
+            _broadcastFileBlock.LinkTo(_outputProgressBlock);
             _findImagesBlock.LinkTo(_outputImagesBlock);
 
             _findFilesBlock.Completion.ContinueWith(t =>
+            {
+                if (t.IsFaulted) ((IDataflowBlock)_broadcastFileBlock).Fault(t.Exception);
+                else _broadcastFileBlock.Complete();
+            });
+            _broadcastFileBlock.Completion.ContinueWith(t =>
             {
                 if (t.IsFaulted) ((IDataflowBlock)_findImagesBlock).Fault(t.Exception);
                 else _findImagesBlock.Complete();

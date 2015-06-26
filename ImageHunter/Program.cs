@@ -22,7 +22,8 @@ namespace ImageHunter
             var hunter = new Hunter(maxDegreeOfParallelism)
             {
                 SearchPath = @"C:\Projects\Yara\yara-com\src\Web\BB.Yara.Com\BB.Yara.Web.Com",
-                SearchFileExtensions = "*.aspx"
+                SearchFileExtensions = "*.aspx",
+                UpdateProgressAfterNumberOfFiles = 10
             };
 
             var stopwatch = new Stopwatch();
