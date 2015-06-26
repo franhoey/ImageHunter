@@ -1,11 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
+using ImageHunter.Logging;
 
 namespace ImageHunter
 {
@@ -19,9 +14,8 @@ namespace ImageHunter
             Console.WriteLine("maxDegreeOfParallelism:{0}", maxDegreeOfParallelism);
             Console.WriteLine();
 
-            var hunter = new Hunter(maxDegreeOfParallelism)
+            var hunter = new Hunter(maxDegreeOfParallelism, new CsvResultLogger())
             {
-                SearchPath = @"C:\Projects\Yara\yara-com\src\Web\BB.Yara.Com\BB.Yara.Web.Com",
                 SearchFileExtensions = "*.aspx",
                 UpdateProgressAfterNumberOfFiles = 10
             };
@@ -29,7 +23,7 @@ namespace ImageHunter
             var stopwatch = new Stopwatch();
             stopwatch.Start();
 
-            hunter.Run();
+            hunter.Run(@"C:\Projects\Yara\yara-com\src\Web\BB.Yara.Com\BB.Yara.Web.Com");
 
             stopwatch.Stop();
 

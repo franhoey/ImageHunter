@@ -49,6 +49,9 @@
   <ItemGroup>
     <Compile Include="FoundImage.cs" />
     <Compile Include="Hunter.cs" />
+    <Compile Include="HunterTasks.cs" />
+    <Compile Include="Logging\CsvResultLogger.cs" />
+    <Compile Include="Logging\IResultLogger.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
