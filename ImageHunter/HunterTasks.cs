@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace ImageHunter
 {
@@ -26,6 +27,7 @@ namespace ImageHunter
 
         public static IEnumerable<FoundImage> FindImagesInFile(string filePath)
         {
+            Thread.Sleep(500);
             var fileText = File.ReadAllText(filePath);
             var matches = FindImageRegex.Matches(fileText);
             foreach (Match match in matches)
