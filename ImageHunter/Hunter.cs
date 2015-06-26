@@ -12,8 +12,8 @@ namespace ImageHunter
         private readonly TransformManyBlock<string, string> _findFilesBlock;
         private readonly TransformManyBlock<string, FoundImage> _findImagesBlock;
         private readonly ActionBlock<FoundImage> _outputImagesBlock;
-        private readonly ActionBlock<string> _outputProgressBlock;
-        private readonly BroadcastBlock<string> _broadcastFileBlock; 
+        private readonly ActionBlock<FoundImage> _outputProgressBlock;
+        private readonly BroadcastBlock<FoundImage> _broadcastFileProcessedBlock; 
 
         private int _filesProcessed;
 
@@ -32,11 +32,11 @@ namespace ImageHunter
             MaxDegreeOfParallelism = maxDegreeOfParallelism;
             _resultLogger = resultLogger;
 
-            _broadcastFileBlock = new BroadcastBlock<string>(null);
+            _broadcastFileProcessedBlock = new BroadcastBlock<FoundImage>(null);
             _findFilesBlock = new TransformManyBlock<string, string>(s => HunterTasks.FindFiles(s, SearchFileExtensions));
             _findImagesBlock = new TransformManyBlock<string, FoundImage>((Func<string, IEnumerable<FoundImage>>)HunterTasks.FindImagesInFile, new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = maxDegreeOfParallelism });
             _outputImagesBlock = new ActionBlock<FoundImage>((Action<FoundImage>)_resultLogger.LogImage);
-            _outputProgressBlock = new ActionBlock<string>((Action<string>)OutputProgress);
+            _outputProgressBlock = new ActionBlock<FoundImage>((Action<FoundImage>)OutputProgress);
 
             BuildTplNetwork();
         }
@@ -56,33 +56,35 @@ namespace ImageHunter
 
         private void BuildTplNetwork()
         {
-            _findFilesBlock.LinkTo(_broadcastFileBlock);
-            _broadcastFileBlock.LinkTo(_findImagesBlock);
-            _broadcastFileBlock.LinkTo(_outputProgressBlock);
-            _findImagesBlock.LinkTo(_outputImagesBlock);
+            _findFilesBlock.LinkTo(_findImagesBlock);
+
+            _findImagesBlock.LinkTo(_broadcastFileProcessedBlock);
+
+            _broadcastFileProcessedBlock.LinkTo(_outputImagesBlock);
+            _broadcastFileProcessedBlock.LinkTo(_outputProgressBlock);
 
             _findFilesBlock.Completion.ContinueWith(t =>
-            {
-                if (t.IsFaulted) ((IDataflowBlock)_broadcastFileBlock).Fault(t.Exception);
-                else _broadcastFileBlock.Complete();
-            });
-            _broadcastFileBlock.Completion.ContinueWith(t =>
             {
                 if (t.IsFaulted) ((IDataflowBlock)_findImagesBlock).Fault(t.Exception);
                 else _findImagesBlock.Complete();
             });
             _findImagesBlock.Completion.ContinueWith(t =>
             {
-                if (t.IsFaulted) ((IDataflowBlock) _outputImagesBlock).Fault(t.Exception);
+                if (t.IsFaulted) ((IDataflowBlock)_broadcastFileProcessedBlock).Fault(t.Exception);
+                else _broadcastFileProcessedBlock.Complete();
+            });
+            _broadcastFileProcessedBlock.Completion.ContinueWith(t =>
+            {
+                if (t.IsFaulted) ((IDataflowBlock)_outputImagesBlock).Fault(t.Exception);
                 else _outputImagesBlock.Complete();
             });
         }
 
-        private void OutputProgress(string s)
+        private void OutputProgress(FoundImage s)
         {
             _filesProcessed++;
             if (_filesProcessed % UpdateProgressAfterNumberOfFiles == 0)
-                Console.WriteLine("Processed files: {0}", _filesProcessed);
+                Console.WriteLine("Found images: {0}", _filesProcessed);
         }
 
     }
