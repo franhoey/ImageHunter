@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Configuration;
 using System.Diagnostics;
+using ImageHunter.FileProvider;
 using ImageHunter.Logging;
 
 namespace ImageHunter
@@ -8,7 +9,7 @@ namespace ImageHunter
     internal class Program
     {
         const int DEFAULT_THREADS_PER_PROCESSOR = 4;
-        const int DEFAULT_PROGRESS_UPDATE_EVERY_N_FILES = 10;
+        const int DEFAULT_PROGRESS_UPDATE_EVERY_N_IMAGES = 10;
 
         static void Main(string[] args)
         {
@@ -19,18 +20,23 @@ namespace ImageHunter
             Console.WriteLine("maxDegreeOfParallelism:{0}", maxDegreeOfParallelism);
             Console.WriteLine();
 
-            var hunter = new Hunter(maxDegreeOfParallelism, new CsvResultLogger())
-            {
-                SearchFileExtensions = ConfigurationManager.AppSettings["SearchFileExtensions"],
-                UpdateProgressAfterNumberOfFiles = GetConfigInt("ProgressUpdateEveryNFiles", DEFAULT_PROGRESS_UPDATE_EVERY_N_FILES)
-            };
-
             var stopwatch = new Stopwatch();
-            stopwatch.Start();
 
-            hunter.Run(ConfigurationManager.AppSettings["SearchPath"]);
+            using (var logger = new CsvResultLogger())
+            {
 
-            stopwatch.Stop();
+                var hunter = new Hunter(maxDegreeOfParallelism, logger, GetFileProvider())
+                {
+                    SearchFileExtensions = ConfigurationManager.AppSettings["SearchFileExtensions"],
+                    UpdateProgressAfterNumberOfImages =
+                        GetConfigInt("ProgressUpdateEveryNImages", DEFAULT_PROGRESS_UPDATE_EVERY_N_IMAGES)
+                };
+                stopwatch.Start();
+
+                hunter.Run(ConfigurationManager.AppSettings["SearchPath"]);
+
+                stopwatch.Stop();
+            }
 
             Console.WriteLine();
             Console.WriteLine("Time elapsed:{0}", stopwatch.ElapsedMilliseconds);
@@ -46,6 +52,12 @@ namespace ImageHunter
             else
                 return defaultValue;
         }
+
+        private static IFileProvider GetFileProvider()
+        {
+            return new LocalFileProvider(ConfigurationManager.AppSettings["SearchPath"], ConfigurationManager.AppSettings["SearchFileExtensions"]);
+        }
+
     }
 }
     

@@ -7,32 +7,14 @@ namespace ImageHunter
 {
     public static class HunterTasks
     {
-        private static readonly Regex FindImageRegex = new Regex("<img.*?src=[\"'](?<src>[^\"']+)[\"']", RegexOptions.Compiled);
+        private static readonly Regex FindImageRegex = new Regex("<img.*?src=[\"'](?<src>(http|//)[^\"']+)[\"']", RegexOptions.Compiled);
 
-        public static IEnumerable<string> FindFiles(string folderPath, string fileExtensions)
+        public static IEnumerable<FoundImage> FindImagesInFile(SearchableFile file)
         {
-            var files = Directory.GetFiles(folderPath, fileExtensions);
-            foreach (var file in files)
-                yield return file;
-
-            var subDirectories = Directory.GetDirectories(folderPath);
-            foreach (var subDirectory in subDirectories)
-            {
-                foreach (var file in FindFiles(subDirectory, fileExtensions))
-                {
-                    yield return file;
-                }
-            }
-        }
-
-        public static IEnumerable<FoundImage> FindImagesInFile(string filePath)
-        {
-            Thread.Sleep(500);
-            var fileText = File.ReadAllText(filePath);
-            var matches = FindImageRegex.Matches(fileText);
+            var matches = FindImageRegex.Matches(file.FileContents);
             foreach (Match match in matches)
             {
-                yield return new FoundImage() { FileName = filePath, ImageName = match.Groups["src"].Value };
+                yield return new FoundImage() { FileName = file.FilePath, ImageName = match.Groups["src"].Value };
             }
         }
     }
