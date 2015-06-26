@@ -1,3 +1,5 @@
 # ImageHunter
+Give it a directory and it will list out all the img src values tags in the files including sub directories
 
-Give it a directory and it will list out all the images in the html files
+## Technology
+Uses TPL Dataflow to enable files to be searched in parallel
