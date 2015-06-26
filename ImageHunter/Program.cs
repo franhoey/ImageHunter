@@ -7,10 +7,13 @@ namespace ImageHunter
 {
     internal class Program
     {
+        const int DEFAULT_THREADS_PER_PROCESSOR = 4;
+        const int DEFAULT_PROGRESS_UPDATE_EVERY_N_FILES = 10;
+
         static void Main(string[] args)
         {
             var processorCount = Environment.ProcessorCount;
-            var maxDegreeOfParallelism = processorCount * GetThreadsPerProcessor();
+            var maxDegreeOfParallelism = processorCount * GetConfigInt("ThreadsPerProcessor", DEFAULT_THREADS_PER_PROCESSOR);
 
             Console.WriteLine("processorCount: {0}", processorCount);
             Console.WriteLine("maxDegreeOfParallelism:{0}", maxDegreeOfParallelism);
@@ -19,7 +22,7 @@ namespace ImageHunter
             var hunter = new Hunter(maxDegreeOfParallelism, new CsvResultLogger())
             {
                 SearchFileExtensions = ConfigurationManager.AppSettings["SearchFileExtensions"],
-                UpdateProgressAfterNumberOfFiles = 10
+                UpdateProgressAfterNumberOfFiles = GetConfigInt("ProgressUpdateEveryNFiles", DEFAULT_PROGRESS_UPDATE_EVERY_N_FILES)
             };
 
             var stopwatch = new Stopwatch();
@@ -35,14 +38,13 @@ namespace ImageHunter
             Console.ReadKey();
         }
 
-        private static int GetThreadsPerProcessor()
+        private static int GetConfigInt(string key,int defaultValue)
         {
-            const int DefaultThreadsPerProcessor = 4;
             int configValue;
-            if (int.TryParse(ConfigurationManager.AppSettings["ThreadsPerProcessor"], out configValue))
+            if (int.TryParse(ConfigurationManager.AppSettings[key], out configValue))
                 return configValue;
             else
-                return DefaultThreadsPerProcessor;
+                return defaultValue;
         }
     }
 }
