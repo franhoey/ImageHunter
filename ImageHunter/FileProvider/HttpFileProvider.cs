@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Net;
 
 namespace ImageHunter.FileProvider
@@ -21,12 +22,23 @@ namespace ImageHunter.FileProvider
         {
             using (var client = new WebClient())
             {
+                var fileContents = client.DownloadString(path);
+
                 return new SearchableFile()
                 {
                     FilePath = path,
-                    FileContents = client.DownloadString(path)
+                    FileContents = (ContentsIsTextHtml(client))?fileContents:string.Empty
                 };
             }
+        }
+
+        private bool ContentsIsTextHtml(WebClient client)
+        {
+            if (client.ResponseHeaders == null)
+                return false;
+
+            var contentType = client.ResponseHeaders[HttpResponseHeader.ContentType];
+            return contentType.ToLower().Contains("text/html");
         }
     }
 }

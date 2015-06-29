@@ -47,10 +47,10 @@ namespace ImageHunter
             _outputImagesBlock = new ActionBlock<FoundImage>(i => _resultLogger.LogImage(i));
             _followShortUrlsBlock = new TransformBlock<FoundImage, FoundImage>(i =>
             {
-                if (!shortUrlResolver.IsShortUrl(i.ImageName))
+                if (!_shortUrlResolver.IsShortUrl(i.ImageName))
                     return i;
 
-                i.ImageName = shortUrlResolver.ResolveUrl(i.ImageName);
+                i.ImageName = _shortUrlResolver.ResolveUrl(i.ImageName);
                 return i;
             });
 
@@ -61,15 +61,45 @@ namespace ImageHunter
 
         public void Run(string searchPath)
         {
-            _resultLogger.OpenLogFile();
+            try
+            {
+                _resultLogger.OpenLogFile();
 
-            _findFilesBlock.Post(_fileProvider);
-            _findFilesBlock.Complete();
-            _outputImagesBlock.Completion.Wait();
+                _findFilesBlock.Post(_fileProvider);
+                _findFilesBlock.Complete();
+                _outputImagesBlock.Completion.Wait();
+            }
+            catch (AggregateException ae)
+            {
+                Console.WriteLine();
+                Console.WriteLine("One or more errors occured:");
+                OutputAggregationErrors(ae);
 
-            _resultLogger.CloseLogFile();
-
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine();
+                Console.WriteLine("An errors occured:");
+                Console.WriteLine(ex.Message);
+            }
+            finally
+            {
+                _resultLogger.CloseLogFile();
+            }
+            
             Console.WriteLine("Total images found: {0}", _filesProcessed);
+        }
+
+        private void OutputAggregationErrors(AggregateException ae)
+        {
+            foreach (var e in ae.InnerExceptions)
+            {
+                var subAe = e as AggregateException;
+                if(subAe != null)
+                    OutputAggregationErrors(subAe);
+                else
+                    Console.WriteLine(e.Message);
+            }
         }
 
         private void BuildTplNetwork()

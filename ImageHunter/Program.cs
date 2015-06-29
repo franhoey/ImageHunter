@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Configuration;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using ImageHunter.FileProvider;
 using ImageHunter.Logging;
 using ImageHunter.ShortUrls;
@@ -68,14 +70,18 @@ namespace ImageHunter
 
         private static IFileProvider GetHttpFileProvider()
         {
-            return new HttpFileProvider(new List<string>
-            {
-                "http://yaracom-dev/",
-                "http://yaracom-dev/about/at_a_glance/",
-                "http://yaracom-dev/media/news_archive/",
-                "http://yaracom-dev/media/news_archive/yara_examining_agricultural_futures.aspx",
-                "http://yarauk-dev/crop-nutrition/products/yaravita/0111-yaravita-fersoil/default.aspx"
-            });
+            return new HttpFileProvider(LoadUrlList());
+        }
+
+        private static List<string> LoadUrlList()
+        {
+            var filePath = ConfigurationManager.AppSettings["SearchUrls"];
+            if (!File.Exists(filePath))
+                throw new ConfigurationErrorsException("Cannot find file containing urls at path in configuration \"SearchUrls\"");
+
+            return File.ReadAllLines(filePath)
+                .Where(l => !string.IsNullOrEmpty(l))
+                .ToList();
         }
 
         private static IShortUrlResolver GetShortUrlResolver()
