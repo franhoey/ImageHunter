@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 
@@ -7,6 +8,7 @@ namespace ImageHunter.ShortUrls
     public class ShortUrlResolver : IShortUrlResolver
     {
         private readonly IList<string> _shortUrlHostnames;
+        private static readonly ConcurrentDictionary<string, string> CachedUrls = new ConcurrentDictionary<string, string>(); 
 
         public ShortUrlResolver(IList<string> shortUrlHostnames)
         {
@@ -20,6 +22,9 @@ namespace ImageHunter.ShortUrls
                 if (!IsShortUrl(url))
                     return url;
 
+                if (CachedUrls.ContainsKey(url))
+                    return CachedUrls[url];
+
                 var request = WebRequest.CreateHttp(url);
                 request.MaximumAutomaticRedirections = 1;
                 request.AllowAutoRedirect = false;
@@ -32,9 +37,13 @@ namespace ImageHunter.ShortUrls
 
                     var responseLocation = response.GetResponseHeader("Location");
 
-                    return string.IsNullOrEmpty(responseLocation)
+                    var retval = string.IsNullOrEmpty(responseLocation)
                         ? url
                         : responseLocation;
+
+                    CachedUrls.TryAdd(url, retval);
+
+                    return retval;
                 }
             }
             catch (Exception ex)
