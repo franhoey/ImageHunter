@@ -98,7 +98,19 @@ namespace ImageHunter
                 if(subAe != null)
                     OutputAggregationErrors(subAe);
                 else
-                    Console.WriteLine(e.Message);
+                    OutputStandardError(e);
+            }
+        }
+
+        private void OutputStandardError(Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+
+            var inspectedError = ex.InnerException;
+            while (inspectedError != null)
+            {
+                Console.WriteLine(" - {0}", inspectedError.Message);
+                inspectedError = inspectedError.InnerException;
             }
         }
 

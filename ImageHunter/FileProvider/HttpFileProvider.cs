@@ -20,15 +20,22 @@ namespace ImageHunter.FileProvider
 
         public SearchableFile GetFile(string path)
         {
-            using (var client = new WebClient())
+            try
             {
-                var fileContents = client.DownloadString(path);
-
-                return new SearchableFile()
+                using (var client = new WebClient())
                 {
-                    FilePath = path,
-                    FileContents = (ContentsIsTextHtml(client))?fileContents:string.Empty
-                };
+                    var fileContents = client.DownloadString(path);
+
+                    return new SearchableFile()
+                    {
+                        FilePath = path,
+                        FileContents = (ContentsIsTextHtml(client)) ? fileContents : string.Empty
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new FileProviderException(string.Format("Error getting url: {0}", path), ex);
             }
         }
 

@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace ImageHunter.FileProvider
@@ -16,7 +17,14 @@ namespace ImageHunter.FileProvider
 
         public IEnumerable<string> GetFilePaths()
         {
-            return FindFiles(_filePath);
+            try
+            {
+                return FindFiles(_filePath);
+            }
+            catch (Exception ex)
+            {
+                throw new FileProviderException("Error file paths", ex);
+            }
         }
 
         private IEnumerable<string> FindFiles(string folderPath)
@@ -37,11 +45,18 @@ namespace ImageHunter.FileProvider
 
         public SearchableFile GetFile(string path)
         {
-            return new SearchableFile()
+            try
             {
-                FilePath = path,
-                FileContents = File.ReadAllText(path)
-            };
+                return new SearchableFile()
+                {
+                    FilePath = path,
+                    FileContents = File.ReadAllText(path)
+                };
+            }
+            catch (Exception ex)
+            {
+                throw new FileProviderException(string.Format("Error getting file: {0}", path), ex);
+            }
         }
     }
 }

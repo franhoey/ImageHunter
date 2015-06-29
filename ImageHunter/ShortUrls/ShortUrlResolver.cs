@@ -15,25 +15,33 @@ namespace ImageHunter.ShortUrls
 
         public string ResolveUrl(string url)
         {
-            if (!IsShortUrl(url))
-                return url;
-
-            var request = WebRequest.CreateHttp(url);
-            request.MaximumAutomaticRedirections = 1;
-            request.AllowAutoRedirect = false;
-            using (var response = request.GetResponse() as HttpWebResponse)
+            try
             {
-                if (response == null)
-                    return url;
-                if (!IsRedirectResponse(response.StatusCode))
+                if (!IsShortUrl(url))
                     return url;
 
-                var responseLocation = response.GetResponseHeader("Location");
+                var request = WebRequest.CreateHttp(url);
+                request.MaximumAutomaticRedirections = 1;
+                request.AllowAutoRedirect = false;
+                using (var response = request.GetResponse() as HttpWebResponse)
+                {
+                    if (response == null)
+                        return url;
+                    if (!IsRedirectResponse(response.StatusCode))
+                        return url;
 
-                return string.IsNullOrEmpty(responseLocation)
-                    ? url
-                    : responseLocation;
+                    var responseLocation = response.GetResponseHeader("Location");
+
+                    return string.IsNullOrEmpty(responseLocation)
+                        ? url
+                        : responseLocation;
+                }
             }
+            catch (Exception ex)
+            {
+                throw new ShortUrlResolverExceptoin(String.Format("Error resolving short url: {0}", url), ex);
+            }
+            
         }
 
         private bool IsRedirectResponse(HttpStatusCode statusCode)

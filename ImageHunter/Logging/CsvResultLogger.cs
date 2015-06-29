@@ -12,31 +12,53 @@ namespace ImageHunter.Logging
 
         public void OpenLogFile()
         {
-            if (_logIsOpen)
-                return;
+            try
+            {
+                if (_logIsOpen)
+                    return;
 
-            if (File.Exists(LOG_FILE_NAME))
-                File.Delete(LOG_FILE_NAME);
+                if (File.Exists(LOG_FILE_NAME))
+                    File.Delete(LOG_FILE_NAME);
 
-            _logWriter = File.CreateText(LOG_FILE_NAME);
-            _logWriter.WriteLine("File,Image");
+                _logWriter = File.CreateText(LOG_FILE_NAME);
+                _logWriter.WriteLine("File,Image");
 
-            _logIsOpen = true;
+                _logIsOpen = true;
+            }
+            catch (Exception ex)
+            {
+                throw new LoggingException("Error opening logfile", ex);
+            }
         }
 
         public void CloseLogFile()
         {
-            if (_logIsOpen)
+            try
             {
-                _logWriter.Flush();
-                _logWriter.Close();
-                _logIsOpen = false;
+                if (_logIsOpen)
+                {
+                    _logWriter.Flush();
+                    _logWriter.Close();
+                    _logIsOpen = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new LoggingException("Error closing logfile", ex);
             }
         }
 
         public void LogImage(FoundImage image)
         {
-            _logWriter.WriteLine("{0},{1}", image.FileName, image.ImageName);
+            try
+            {
+                _logWriter.WriteLine("{0},{1}", image.FileName, image.ImageName);
+            }
+            catch (Exception ex)
+            {
+                throw new LoggingException(string.Format("Error logging result: {0},{1}", image.FileName, image.ImageName), ex);
+            }
+            
         }
 
         public void Dispose()
