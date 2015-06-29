@@ -59,6 +59,8 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SearchableFile.cs" />
+    <Compile Include="ShortUrls\IShortUrlResolver.cs" />
+    <Compile Include="ShortUrls\ShortUrlResolver.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

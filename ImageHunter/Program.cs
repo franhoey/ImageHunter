@@ -4,6 +4,7 @@ using System.Configuration;
 using System.Diagnostics;
 using ImageHunter.FileProvider;
 using ImageHunter.Logging;
+using ImageHunter.ShortUrls;
 
 namespace ImageHunter
 {
@@ -28,10 +29,12 @@ namespace ImageHunter
             //fileProvider = GetLocalFileProvider();
             fileProvider = GetHttpFileProvider();
 
+            IShortUrlResolver shortUrlResolver = GetShortUrlResolver();
+
             using (var logger = new CsvResultLogger())
             {
 
-                var hunter = new Hunter(maxDegreeOfParallelism, logger, fileProvider)
+                var hunter = new Hunter(maxDegreeOfParallelism, logger, fileProvider, shortUrlResolver)
                 {
                     SearchFileExtensions = ConfigurationManager.AppSettings["SearchFileExtensions"],
                     UpdateProgressAfterNumberOfImages =
@@ -49,7 +52,6 @@ namespace ImageHunter
             Console.ReadKey();
         }
 
-        
         private static int GetConfigInt(string key,int defaultValue)
         {
             int configValue;
@@ -73,6 +75,14 @@ namespace ImageHunter
                 "http://yaracom-dev/media/news_archive/",
                 "http://yaracom-dev/media/news_archive/yara_examining_agricultural_futures.aspx",
                 "http://yarauk-dev/crop-nutrition/products/yaravita/0111-yaravita-fersoil/default.aspx"
+            });
+        }
+
+        private static IShortUrlResolver GetShortUrlResolver()
+        {
+            return new ShortUrlResolver(new List<string>
+            {
+                "yaraurl.com"
             });
         }
     }
