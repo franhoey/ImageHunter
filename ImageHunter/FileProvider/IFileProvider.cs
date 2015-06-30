@@ -5,7 +5,7 @@ namespace ImageHunter.FileProvider
 {
     public interface IFileProvider
     {
-        IEnumerable<string> GetFilePaths();
-        SearchableFile GetFile(string path);
+        IEnumerable<SearchItem> GetFilePaths();
+        SearchItem GetFile(SearchItem path);
     }
 }

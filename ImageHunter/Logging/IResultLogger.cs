@@ -3,7 +3,7 @@
     public interface IResultLogger
     {
         void OpenLogFile();
-        void CloseLogFile();
-        void LogImage(FoundImage image);
+        void CloseLogFiles();
+        void LogImage(SearchItem image);
     }
 }

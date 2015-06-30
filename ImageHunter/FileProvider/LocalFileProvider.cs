@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace ImageHunter.FileProvider
 {
@@ -15,11 +16,12 @@ namespace ImageHunter.FileProvider
             _extensionFilter = extensionFilter;
         }
 
-        public IEnumerable<string> GetFilePaths()
+        public IEnumerable<SearchItem> GetFilePaths()
         {
             try
             {
-                return FindFiles(_filePath);
+                return FindFiles(_filePath)
+                    .Select(s => new SearchItem() { FilePath = s});
             }
             catch (Exception ex)
             {
@@ -43,19 +45,21 @@ namespace ImageHunter.FileProvider
             }
         }
 
-        public SearchableFile GetFile(string path)
+        public SearchItem GetFile(SearchItem item)
         {
             try
             {
-                return new SearchableFile()
-                {
-                    FilePath = path,
-                    FileContents = File.ReadAllText(path)
-                };
+                if (item.Status != SearchItem.Statuses.Ok)
+                    return item;
+
+                item.FileContents = File.ReadAllText(item.FilePath);
+                return item;
             }
             catch (Exception ex)
             {
-                throw new FileProviderException(string.Format("Error getting file: {0}", path), ex);
+                item.Status = SearchItem.Statuses.Failed;
+                item.Error = new FileProviderException("Error getting file", ex);
+                return item;
             }
         }
     }

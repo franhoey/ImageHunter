@@ -13,15 +13,16 @@ namespace ImageHunter
         private readonly IFileProvider _fileProvider;
         private readonly IShortUrlResolver _shortUrlResolver;
 
-        private readonly TransformManyBlock<IFileProvider, string> _findFilesBlock;
-        private readonly TransformBlock<string, SearchableFile> _loadFileTextBlock;
-        private readonly TransformManyBlock<SearchableFile, FoundImage> _findImagesBlock;
-        private readonly ActionBlock<FoundImage> _outputImagesBlock;
-        private readonly ActionBlock<FoundImage> _outputProgressBlock;
-        private readonly BroadcastBlock<FoundImage> _broadcastFileProcessedBlock;
-        private readonly TransformBlock<FoundImage, FoundImage> _followShortUrlsBlock;
+        private readonly TransformManyBlock<IFileProvider, SearchItem> _findFilesBlock;
+        private readonly TransformBlock<SearchItem, SearchItem> _loadFileTextBlock;
+        private readonly TransformManyBlock<SearchItem, SearchItem> _findImagesBlock;
+        private readonly ActionBlock<SearchItem> _outputImagesBlock;
+        private readonly ActionBlock<SearchItem> _outputProgressBlock;
+        private readonly BroadcastBlock<SearchItem> _broadcastFileProcessedBlock;
+        private readonly TransformBlock<SearchItem, SearchItem> _followShortUrlsBlock;
 
-        private int _filesProcessed;
+        private int _imagesFound;
+        private int _errorCount;
 
         public string SearchFileExtensions { get; set; }
         public int MaxDegreeOfParallelism { get; private set; }
@@ -40,21 +41,14 @@ namespace ImageHunter
             _fileProvider = fileProvider;
             _shortUrlResolver = shortUrlResolver;
 
-            _broadcastFileProcessedBlock = new BroadcastBlock<FoundImage>(null);
-            _findFilesBlock = new TransformManyBlock<IFileProvider, string>(f => f.GetFilePaths());
-            _loadFileTextBlock = new TransformBlock<string, SearchableFile>(s => _fileProvider.GetFile(s), new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = maxDegreeOfParallelism });
-            _findImagesBlock = new TransformManyBlock<SearchableFile, FoundImage>(s => HunterTasks.FindImagesInFile(s), new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = maxDegreeOfParallelism });
-            _outputImagesBlock = new ActionBlock<FoundImage>(i => _resultLogger.LogImage(i));
-            _followShortUrlsBlock = new TransformBlock<FoundImage, FoundImage>(i =>
-            {
-                if (!_shortUrlResolver.IsShortUrl(i.ImageName))
-                    return i;
+            _broadcastFileProcessedBlock = new BroadcastBlock<SearchItem>(null);
+            _findFilesBlock = new TransformManyBlock<IFileProvider, SearchItem>(f => f.GetFilePaths());
+            _loadFileTextBlock = new TransformBlock<SearchItem, SearchItem>(s => _fileProvider.GetFile(s), new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = maxDegreeOfParallelism });
+            _findImagesBlock = new TransformManyBlock<SearchItem, SearchItem>(s => HunterTasks.FindImagesInFile(s), new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = maxDegreeOfParallelism });
+            _followShortUrlsBlock = new TransformBlock<SearchItem, SearchItem>(i => _shortUrlResolver.ResolveImageShortUrl(i));
 
-                i.ImageName = _shortUrlResolver.ResolveUrl(i.ImageName);
-                return i;
-            });
-
-            _outputProgressBlock = new ActionBlock<FoundImage>(i => OutputProgress(i));
+            _outputImagesBlock = new ActionBlock<SearchItem>(i => _resultLogger.LogImage(i));
+            _outputProgressBlock = new ActionBlock<SearchItem>(i => OutputProgress(i));
 
             BuildTplNetwork();
         }
@@ -73,47 +67,24 @@ namespace ImageHunter
             {
                 Console.WriteLine();
                 Console.WriteLine("One or more errors occured:");
-                OutputAggregationErrors(ae);
+                Console.WriteLine(ae.BuildLog());
 
             }
             catch (Exception ex)
             {
                 Console.WriteLine();
                 Console.WriteLine("An errors occured:");
-                Console.WriteLine(ex.Message);
+                Console.WriteLine(ex.BuildLog());
             }
             finally
             {
-                _resultLogger.CloseLogFile();
+                _resultLogger.CloseLogFiles();
             }
-            
-            Console.WriteLine("Total images found: {0}", _filesProcessed);
+
+            Console.WriteLine("Total images found: {0}", _imagesFound);
+            Console.WriteLine("Total errors: {0}", _errorCount);
         }
-
-        private void OutputAggregationErrors(AggregateException ae)
-        {
-            foreach (var e in ae.InnerExceptions)
-            {
-                var subAe = e as AggregateException;
-                if(subAe != null)
-                    OutputAggregationErrors(subAe);
-                else
-                    OutputStandardError(e);
-            }
-        }
-
-        private void OutputStandardError(Exception ex)
-        {
-            Console.WriteLine(ex.Message);
-
-            var inspectedError = ex.InnerException;
-            while (inspectedError != null)
-            {
-                Console.WriteLine(" - {0}", inspectedError.Message);
-                inspectedError = inspectedError.InnerException;
-            }
-        }
-
+        
         private void BuildTplNetwork()
         {
             ConnectBlocks(_findFilesBlock, _loadFileTextBlock);
@@ -124,18 +95,23 @@ namespace ImageHunter
 
             ConnectBlocks(_followShortUrlsBlock, _broadcastFileProcessedBlock);
             
-            ConnectBlocks(_broadcastFileProcessedBlock, new List<ITargetBlock<FoundImage>>
+            ConnectBlocks(_broadcastFileProcessedBlock, new List<ITargetBlock<SearchItem>>
             {
                 _outputImagesBlock,
                 _outputProgressBlock
             });
         }
 
-        private void OutputProgress(FoundImage s)
+        private void OutputProgress(SearchItem s)
         {
-            _filesProcessed++;
-            if (_filesProcessed % UpdateProgressAfterNumberOfImages == 0)
-                Console.WriteLine("Found images: {0}", _filesProcessed);
+            if (s.Status == SearchItem.Statuses.Failed)
+                _errorCount++;
+            else
+            {
+                _imagesFound++;
+                if (_imagesFound%UpdateProgressAfterNumberOfImages == 0)
+                    Console.WriteLine("Found images: {0}", _imagesFound);
+            }
         }
 
         private void ConnectBlocks<T>(ISourceBlock<T> sourceBlock, ITargetBlock<T> targetBlock)

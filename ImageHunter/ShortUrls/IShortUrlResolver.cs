@@ -2,7 +2,6 @@
 {
     public interface IShortUrlResolver
     {
-        string ResolveUrl(string url);
-        bool IsShortUrl(string url);
+        SearchItem ResolveImageShortUrl(SearchItem item);
     }
 }

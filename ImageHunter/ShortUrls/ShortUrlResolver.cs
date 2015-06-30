@@ -15,42 +15,53 @@ namespace ImageHunter.ShortUrls
             _shortUrlHostnames = shortUrlHostnames;
         }
 
-        public string ResolveUrl(string url)
+        public SearchItem ResolveImageShortUrl(SearchItem item)
         {
             try
             {
-                if (!IsShortUrl(url))
-                    return url;
+                if (item.Status != SearchItem.Statuses.Ok)
+                    return item;
 
-                if (CachedUrls.ContainsKey(url))
-                    return CachedUrls[url];
+                if (!IsShortUrl(item.ImageUrl))
+                    return item;
 
-                var request = WebRequest.CreateHttp(url);
+                item.ShortUrl = item.ImageUrl;
+
+                if (CachedUrls.ContainsKey(item.ImageUrl))
+                {
+                    item.ImageUrl = CachedUrls[item.ImageUrl];
+                    return item;
+                }
+
+                var request = WebRequest.CreateHttp(item.ImageUrl);
                 request.MaximumAutomaticRedirections = 1;
                 request.AllowAutoRedirect = false;
                 using (var response = request.GetResponse() as HttpWebResponse)
                 {
                     if (response == null)
-                        return url;
+                        return item;
                     if (!IsRedirectResponse(response.StatusCode))
-                        return url;
+                        return item;
 
                     var responseLocation = response.GetResponseHeader("Location");
 
-                    var retval = string.IsNullOrEmpty(responseLocation)
-                        ? url
-                        : responseLocation;
-
-                    CachedUrls.TryAdd(url, retval);
-
-                    return retval;
+                    if (!string.IsNullOrEmpty(responseLocation))
+                    {
+                        CachedUrls.TryAdd(item.ImageUrl, responseLocation);
+                        item.ImageUrl = responseLocation;
+                    }
+                    else
+                        CachedUrls.TryAdd(item.ImageUrl, item.ImageUrl);
+                    
+                    return item;
                 }
             }
             catch (Exception ex)
             {
-                throw new ShortUrlResolverExceptoin(String.Format("Error resolving short url: {0}", url), ex);
+                item.Status = SearchItem.Statuses.Failed;
+                item.Error = new ShortUrlResolverExceptoin(String.Format("Error resolving short item: {0}", item), ex);
+                return item;
             }
-            
         }
 
         private bool IsRedirectResponse(HttpStatusCode statusCode)
@@ -59,7 +70,7 @@ namespace ImageHunter.ShortUrls
             return statusCodeInt >= 300 && statusCodeInt <= 399;
         }
 
-        public bool IsShortUrl(string url)
+        private bool IsShortUrl(string url)
         {
             Uri uri;
             if (!Uri.TryCreate(url, UriKind.Absolute, out uri))

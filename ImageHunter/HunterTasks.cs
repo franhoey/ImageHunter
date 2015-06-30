@@ -9,12 +9,19 @@ namespace ImageHunter
     {
         private static readonly Regex FindImageRegex = new Regex("<img.*?src=[\"'](?<src>(http|//)[^\"']+)[\"']", RegexOptions.Compiled);
 
-        public static IEnumerable<FoundImage> FindImagesInFile(SearchableFile file)
+        public static IEnumerable<SearchItem> FindImagesInFile(SearchItem item)
         {
-            var matches = FindImageRegex.Matches(file.FileContents);
-            foreach (Match match in matches)
+            if (item.Status != SearchItem.Statuses.Ok)
+                yield return item;
+            else
             {
-                yield return new FoundImage() { FileName = file.FilePath, ImageName = match.Groups["src"].Value };
+                var matches = FindImageRegex.Matches(item.FileContents);
+                foreach (Match match in matches)
+                {
+                    var newItem = item.Clone();
+                    newItem.ImageUrl = match.Groups["src"].Value;
+                    yield return newItem;
+                }
             }
         }
     }

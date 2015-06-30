@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 
 namespace ImageHunter.FileProvider
@@ -13,29 +14,35 @@ namespace ImageHunter.FileProvider
             _urls = urls;
         }
 
-        public IEnumerable<string> GetFilePaths()
+        public IEnumerable<SearchItem> GetFilePaths()
         {
-            return _urls;
+            return _urls.Select(s => new SearchItem()
+            {
+                FilePath = s
+            });
         }
 
-        public SearchableFile GetFile(string path)
+        public SearchItem GetFile(SearchItem item)
         {
             try
             {
+                if (item.Status != SearchItem.Statuses.Ok)
+                    return item;
+
                 using (var client = new WebClient())
                 {
-                    var fileContents = client.DownloadString(path);
+                    var fileContents = client.DownloadString(item.FilePath);
 
-                    return new SearchableFile()
-                    {
-                        FilePath = path,
-                        FileContents = (ContentsIsTextHtml(client)) ? fileContents : string.Empty
-                    };
+                    item.FileContents = (ContentsIsTextHtml(client)) ? fileContents : string.Empty;
+
+                    return item;
                 }
             }
             catch (Exception ex)
             {
-                throw new FileProviderException(string.Format("Error getting url: {0}", path), ex);
+                item.Status = SearchItem.Statuses.Failed;
+                item.Error = new FileProviderException("Error getting url", ex);
+                return item;
             }
         }
 
